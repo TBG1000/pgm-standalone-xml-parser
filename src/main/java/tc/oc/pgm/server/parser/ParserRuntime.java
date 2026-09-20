@@ -7,15 +7,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javassist.util.proxy.ProxyFactory;
 import net.kyori.adventure.text.Component;
-import net.minecraft.server.v1_8_R3.DispenserRegistry;
-import net.minecraft.server.v1_8_R3.Enchantment;
-import net.minecraft.server.v1_8_R3.MobEffectList;
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
-import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemFactory;
-import org.bukkit.craftbukkit.v1_8_R3.potion.CraftPotionBrewer;
 import org.bukkit.plugin.PluginManager;
-import org.bukkit.potion.Potion;
 import org.bukkit.potion.PotionEffectType;
 import tc.oc.pgm.api.Config;
 import tc.oc.pgm.api.Datastore;
@@ -44,26 +38,7 @@ final class ParserRuntime {
           case "isPluginEnabled" -> false;
           default -> throw unsupported(method.getName());
         });
-    Server server = proxy(Server.class, (self, method, args) -> switch (method.getName()) {
-      case "getName" -> "PGM XML parser";
-      case "getVersion" -> "SportPaper (standalone XML parser)";
-      case "getBukkitVersion" -> "1.8.8-R0.1-SNAPSHOT";
-      case "getLogger" -> logger;
-      case "getItemFactory" -> CraftItemFactory.instance();
-      case "getPluginManager" -> plugins;
-      case "getMaxPlayers" -> 100;
-      default -> throw unsupported(method.getName());
-    });
-    Bukkit.setServer(server);
-
-    // Register Minecraft's item, enchantment and potion data without constructing a server,
-    // loading worlds, opening sockets, scheduling ticks, or enabling plugins.
-    DispenserRegistry.c();
-    Enchantment.DAMAGE_ALL.getClass();
-    org.bukkit.enchantments.Enchantment.stopAcceptingRegistrations();
-    Potion.setPotionBrewer(new CraftPotionBrewer());
-    MobEffectList.BLINDNESS.getClass();
-    PotionEffectType.stopAcceptingRegistrations();
+    Server server = ParserPlatform.initialize(logger, plugins);
 
     // Published PGM initializes PotionEffects through BukkitUtils. Initialize in that
     // direction to avoid exposing partially initialized potion constants.
@@ -101,18 +76,19 @@ final class ParserRuntime {
       case "getLogger", "getGameLogger" -> logger;
       case "getServer" -> server;
       case "getName" -> "PGM XML parser";
+      case "namespace" -> "pgm";
       case "isEnabled" -> true;
       default -> throw unsupported(method.getName());
     }));
     initialized = true;
   }
 
-  private static UnsupportedOperationException unsupported(String method) {
+  static UnsupportedOperationException unsupported(String method) {
     return new UnsupportedOperationException(
         "Not available during standalone XML parsing: " + method);
   }
 
-  private static <T> T proxy(Class<T> type, InvocationHandler handler) {
+  static <T> T proxy(Class<T> type, InvocationHandler handler) {
     // SportPaper has binary compatibility methods with the same parameters and different
     // return types (getOnlinePlayers). java.lang.reflect.Proxy cannot implement that API.
     ProxyFactory factory = new ProxyFactory();

@@ -189,7 +189,7 @@ public final class MapValidator {
 
   private static void usage(PrintStream out) {
     out.println("Usage: pgm-validate [--includes DIR] [--variant ID] [--] FILE_OR_DIR...");
-    out.println("Validate PGM map XML for Minecraft 1.8.8 without running a server.");
+    out.println("Validate PGM map XML for Minecraft " + ParserPlatform.VERSION + " without running a server.");
     out.println(
         "Folders are searched recursively for map.xml files; individual XML files are also accepted.");
   }
