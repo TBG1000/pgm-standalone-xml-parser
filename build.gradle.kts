@@ -9,6 +9,8 @@ java {
     toolchain.languageVersion = JavaLanguageVersion.of(21)
 }
 
+sourceSets.main { java.srcDir("src/legacy/java") }
+
 repositories {
     mavenCentral()
     maven("https://repo.pgm.fyi/snapshots")

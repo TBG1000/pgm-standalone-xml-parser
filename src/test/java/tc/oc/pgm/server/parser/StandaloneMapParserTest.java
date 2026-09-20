@@ -149,9 +149,9 @@ class StandaloneMapParserTest {
     MapException error = assertThrows(
         MapException.class,
         () -> parser.parse(
-            xml(MAP.formatted("").replace("<map ", "<map min-server-version=\"1.21.0\" ")),
+            xml(MAP.formatted("").replace("<map ", "<map min-server-version=\"99.0.0\" ")),
             "default"));
-    assertTrue(error.getMessage().contains("targets 1.8.8"));
+    assertTrue(error.getMessage().contains("targets " + ParserPlatform.VERSION));
   }
 
   @Test

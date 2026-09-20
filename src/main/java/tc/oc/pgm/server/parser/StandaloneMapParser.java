@@ -18,7 +18,7 @@ import tc.oc.pgm.util.xml.InvalidXMLException;
 
 /**
  * Parses PGM XML into map modules without starting a Minecraft server. This runtime targets
- * SportPaper 1.8.8 and owns the process-wide Bukkit and PGM services. Use it in a separate JVM from
+ * the distribution's Minecraft version and owns process-wide Bukkit and PGM services. Use it in a separate JVM from
  * a running server. The returned context can be inspected, but cannot create matches.
  */
 public final class StandaloneMapParser {
@@ -96,7 +96,7 @@ public final class StandaloneMapParser {
         throw new MapException(
             source,
             context.getInfo(),
-            "Map requires a different Minecraft version; this validator targets 1.8.8",
+            "Map requires a different Minecraft version; this validator targets " + ParserPlatform.VERSION,
             null);
       }
       return context;

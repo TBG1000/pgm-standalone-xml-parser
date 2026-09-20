@@ -2,11 +2,16 @@
 
 `pgm-validate` checks PGM map XML without starting a Minecraft server. It runs the same
 `MapFactoryImpl` used by PGM, including preprocessing, module parsing, reference resolution,
-and post-parse validation. The parser is built independently from published PGM and SportPaper artifacts.
+and post-parse validation. The parser is built independently from published PGM,
+SportPaper, and Paper artifacts.
 
-This first version targets **SportPaper / Minecraft 1.8.8**. Maps whose version constraints
-exclude 1.8.8 fail with an explicit diagnostic. It does not validate modern-only branches of
-server-version conditionals. Java 21 is required.
+Two distributions are available: **SportPaper / Minecraft 1.8.8** (`pgm-validate`)
+and **Paper / Minecraft 1.21.11** (`pgm-validate-modern`). Java 21 is required.
+Each uses the actual server implementation and vanilla registries for its target.
+Map version constraints and XML version conditionals are evaluated against that
+target; incompatible maps fail with an explicit diagnostic. Other runtime versions
+are not supported. A map made for an intermediate version can be checked for
+compatibility with 1.21.11, but this does not validate its behavior on that older runtime.
 
 ## Build and run
 
@@ -15,6 +20,7 @@ From this repository root (Java 21 required):
 ```sh
 ./gradlew installDist
 build/install/pgm-validate/bin/pgm-validate /path/to/map.xml
+modern/build/install/pgm-validate-modern/bin/pgm-validate-modern /path/to/modern/map.xml
 ```
 
 On Windows:
@@ -22,11 +28,20 @@ On Windows:
 ```powershell
 .\gradlew.bat installDist
 .\build\install\pgm-validate\bin\pgm-validate.bat C:\maps\example\map.xml
+.\modern\build\install\pgm-validate-modern\bin\pgm-validate-modern.bat C:\maps\modern\map.xml
 ```
 
 The entire `build/install/pgm-validate` directory can be copied to another computer
 with Java 21; Gradle is only needed to build it. `distZip` also creates a distributable
-archive under `build/distributions`.
+archive under `build/distributions`. The modern distribution is installed under
+`modern/build/install/pgm-validate-modern`, with ZIPs under `modern/build/distributions`.
+Copy the entire relevant installation directory, including its `lib` folder.
+
+Unqualified `check`, `installDist`, and `distZip` run for both distributions.
+For only one runtime, use `:check :installDist :distZip` (legacy) or
+`:modern:check :modern:installDist :modern:distZip` (modern).
+For maps containing both legacy and modern conditional branches, run both launchers
+to validate both branches. A single invocation uses one runtime for its entire batch.
 
 ```text
 Usage: pgm-validate [--includes DIR] [--variant ID] [--] FILE_OR_DIR...
@@ -96,6 +111,10 @@ The parser class is `tc.oc.pgm.server.parser.StandaloneMapParser`. Pass `null` f
 directory when none is needed. Parsing throws `MapException`. Diagnostics for unused XML
 are sent to the supplied logger.
 
+The Java API is identical in both distributions. Select the distribution's JARs when
+constructing the JVM classpath. Do not combine the legacy and modern `lib` directories:
+their Bukkit and Minecraft classes are incompatible. Switching runtimes requires a new JVM.
+
 The offline adapter owns process-wide Bukkit and PGM services. Use a dedicated JVM, separate
 from a running Bukkit server. Reuse the parser for multiple maps; each call creates a fresh
 map factory. Returned modules are intended for inspection, not for starting matches. Enumerate
@@ -107,8 +126,10 @@ Run the integration tests with `./gradlew test`.
 ## Dependencies and upgrades
 
 This is an independent Gradle build. It does not use a PGM checkout, `buildSrc`,
-`mavenLocal()`, or sibling projects. Only Maven Central and the public
-[PGM snapshot repository](https://repo.pgm.fyi/snapshots) are required.
+`mavenLocal()`, or sibling repositories. The legacy build uses Maven Central and the
+public [PGM snapshot repository](https://repo.pgm.fyi/snapshots). The modern build
+also uses Paper's Maven repository, Gradle's plugin portal, and Minecraft artifacts
+downloaded by paperweight during setup.
 
 The default PGM dependency is `tc.oc.pgm:core:0.16-20260509.080057-30`, a pinned
 snapshot listed by the repository on extraction. Override it with
@@ -120,7 +141,7 @@ the platform implementations, and PGM's bundled libraries. Its JDOM classes are
 relocated to `tc.oc.pgm.lib.org.jdom2`, so the adapter imports that namespace.
 Do not add a separate unshaded JDOM or `util` JAR: their types differ from the
 published parser's API. The modern platform is bundled but is not selected by
-the SportPaper runtime.
+the SportPaper runtime. The modern distribution selects the bundled modern platform.
 
 SportPaper `1.8.8-R0.1-SNAPSHOT` supplies Bukkit, Minecraft 1.8.8 internals, and
 its runtime libraries. Javassist `3.28.0-GA` creates the offline service proxies;
@@ -128,13 +149,26 @@ SLF4J NOP `1.7.32` supplies the logging binding. These versions and JUnit `6.0.2
 come from the original Gradle configurations. SportPaper remains a changing
 snapshot, so the complete dependency graph is not immutable.
 
+The modern build uses `io.papermc.paperweight.userdev:2.0.0-beta.19` and Paper's
+`1.21.11-R0.1-SNAPSHOT` development bundle, matching PGM's modern Gradle configuration.
+Paperweight supplies the Mojang-mapped server and its libraries as runtime dependencies;
+the Paper API alone cannot supply Minecraft registries or CraftBukkit item implementations.
+The first modern build downloads and prepares these artifacts. The installed application
+requires no Gradle or downloads to parse maps. Paper's development bundle is a changing snapshot.
+
+Modern startup loads the bundled vanilla data pack's registries and tags, including
+enchantments and armor trims. It does not load custom data packs or start plugins,
+worlds, network listeners, or a match loop. Startup may take several seconds; reuse
+the parser or validate a batch of maps in one invocation. Runtime services outside
+the offline adapter still fail explicitly.
+
 The published PGM snapshot predates the standalone-specific fixes in the source
 checkout. This adapter therefore validates XML securely before PGM reads it,
 loads includes as in-memory PGM documents, limits include expansion to 1024,
 and initializes Bukkit's potion helpers in a compatible order. The integration
 tests cover these compatibility requirements; keep them when upgrading PGM.
 
-GitHub Actions runs `check distZip` and uploads the ZIP as a workflow artifact.
+GitHub Actions runs `check distZip` and uploads both ZIPs as a workflow artifact.
 No PGM build or GitHub Packages credentials are needed. The generated ZIP contains
 the executable scripts and all runtime JARs; retain `LICENSE` and `LICENSE_LINKING`
 when redistributing source. This project carries PGM's existing license and linking
